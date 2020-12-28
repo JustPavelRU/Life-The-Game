@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8">
+    <title>Petri Dish</title>
+    <style>
+		canvas {
+			position: absolute;
+			bottom: 50px;
+			left: 600px;
+		}
+    </style>
+</head>
+<body>
+    <form name="btns"> 
+        <div>Число строк:  <input type="number" value="50" name="rows"></div><br>
+        <div>Число столбцов:  <input type="number" value="50" name="cols"></div><br>
+        <div>Число клеток:  <input type="number" value="500" name="cell"></div><br>
+		<div>Цвет живых клеток:<select name="cellAlive">
+								<option>Green</option>
+								<option>Red</option>
+								<option>Orange</option>
+		</select></div><br>
+		<div>Цвет мертвых клеток:<select name="cellDead">
+								<option>Silver</option>
+								<option>Black</option>
+								<option>Blue</option>
+		</select></div><br>
+        <div><input type="button" value="Создать мир" onclick="generateWorld()"></div><br>
+    </form>
+    <script>
+        var cellCount;
+        var rows, cols;
+        var cnv = document.createElement('canvas');
+        var cnvContext = cnv.getContext('2d');
+		var cellMin = 0;
+		var cellMax = 4;
+		var cellTime = 4;
+        
+		function generateWorld() {
+            dots = [];
+            rows = parseInt(document.forms.btns.elements.rows.value);
+            cols = parseInt(document.forms.btns.elements.cols.value);
+            var world = document.getElementById('world');
+            
+			cnv.width = cols * 10 + 1;
+            cnv.height = rows * 10 + 1;
+            
+			cnvContext.clearRect(0, 0, cnv.width, cnv.height);
+			cnvContext.lineWidth = 0.5;
+            cnvContext.fillStyle = document.forms.btns.elements.cellDead.value;
+            cnvContext.rect(0.5, 0.5, cols * 10, rows * 10);
+            cnvContext.fill();
+            
+			for (let i = 0; i < rows; ++i) {
+                var r = [];
+                cnvContext.moveTo(0.5, i * 10 + 0.5);
+                cnvContext.lineTo(cols * 10 + 0.5, i * 10 + 0.5);
+                for (var j = 0; j < cols; ++j) {
+                    r.push({class:'empty', i:i, j:j, moved:false});
+                }
+                dots.push(r);
+            }
+            
+			for (var i = 0; i < cols; ++i) {
+                cnvContext.moveTo(i * 10 + 0.5, 0.5);
+                cnvContext.lineTo(i * 10 + 0.5, rows * 10 + 0.5);
+            }
+            
+			cnvContext.stroke();
+            cnvContext.closePath();
+            
+			if(!world) {
+				var createBtn = document.createElement('input');
+				var startBtn = document.createElement('input');
+				var stopBtn = document.createElement('input');
+				var btnsAdvance = new Array(createBtn, startBtn, stopBtn);
+				var values = new Array('Создать клеток', 'Старт', 'Стоп');
+				var doLeft = new Array(65, 50, 35);
+				
+				for (let i = 0; i < 3; ++i) {	
+					btnsAdvance[i].type = 'button';
+					btnsAdvance[i].value = values[i];
+					btnsAdvance[i].style.position = 'relative';
+					btnsAdvance[i].style.left = String(cols / 2 * 10 - doLeft[i]) + 'px';
+				}
+				
+                var div = document.createElement('div');
+                div.id = 'world';
+                var br = document.createElement('br');
+                createBtn.setAttribute('onclick','createCells(document.forms.btns.elements.cell.value)');
+                startBtn.setAttribute('onclick','startLife()');
+                stopBtn.setAttribute('onclick','clearInterval(intervalId);');
+                
+				cellCount = document.createElement('span');
+                cellCount.style.position = 'relative';
+                cellCount.style.left = String(cols / 2 * 10 - 25) + 'px';
+				
+                div.appendChild(createBtn);
+                div.appendChild(startBtn);
+                div.appendChild(stopBtn);
+                div.appendChild(cellCount);
+                div.appendChild(br);
+                div.appendChild(cnv);
+                document.body.appendChild(div);
+            }
+        }
+        generateWorld();
+        
+		function createCells(cell) {
+            cell = parseInt(cell);
+            if (cell > cols * rows) {
+                alert('Клеток больше чем ... клеток, перезагрузите страницу!');
+            }
+            else {
+                generateWorld(rows, cols);
+                freezer = JSON.parse(JSON.stringify(dots));
+                var x, y, i, j;
+                h = cell;
+                
+				while (h > 0) {
+                    --h;
+                    x = Math.floor(Math.random() * freezer.length);
+                    y = Math.floor(Math.random() * freezer[x].length);
+                    i = freezer[x][y].i;
+                    j = freezer[x][y].j;
+                    var cellNew = cellMax - Math.floor(Math.random() * Math.abs(cellMax - cellMin));
+                    dots[i][j] = {class:'cellClass', i:i, j:j, moved:false, life: cellTime, birth: cellNew, spooked:false};
+                    freezer[x].splice(y, 1);
+                    if (freezer[x].length == 0){freezer.splice(x, 1)}
+                    
+					cnvContext.beginPath();
+                    cnvContext.rect(j * 10 + 1, i * 10 + 1, 9, 9);
+                    cnvContext.fillStyle = document.forms.btns.elements.cellAlive.value;
+                    cnvContext.fill();
+                    cnvContext.closePath();
+                }
+                
+                cnvContext.closePath();
+                cnvContext.beginPath();
+            }
+        }
+        var intervalId;
+		
+        function startLife() {
+            intervalId = setInterval(function() {
+                for (let i = 0; i < rows; ++i) {
+                    for (let j = 0; j < cols; ++j) {
+                        if (!dots[i][j].moved) {
+                            dots[i][j].life = dots[i][j].life - 1;
+                            dots[i][j].birth = dots[i][j].birth - 1;
+                            if (dots[i][j].life <= 0) dots[i][j] = {class:'empty', i:i, j:j, moved:false}
+                            else {
+                                var empties = [];
+                                
+								for (let k = 0; k < 3; ++k) {
+                                    for (let t = 0; t < 3; ++t) {
+                                        if (k == 1 && t == 1) continue;
+                                        let x, y;
+                                        x = i + k - 1;
+                                        if (x < 0){x = rows + x}
+                                        if (x > rows - 1){x = x - rows}
+                                        y = j + t - 1;
+                                        if (y < 0){y = cols + y}
+                                        if (y > cols - 1){y = y - cols}
+                                        if (dots[x][y].class == 'empty'){empties.push(dots[x][y])}
+
+                                    }
+                                }
+                                
+								if (dots[i][j].birth == 0) {
+                                    if (empties.length == 0) dots[i][j].birth = 1
+                                    else{
+                                        n = Math.floor(Math.random() * empties.length);
+                                        if (dots[i][j].class == 'cellClass' && !dots[i][j].spooked) {
+                                            var cellNew = cellMax - Math.floor(Math.random() * Math.abs(cellMax - cellMin));
+                                            dots[empties[n].i][empties[n].j] = {class:'cellClass', i:empties[n].i, j:empties[n].j, moved:true, life: cellTime, birth: cellNew};
+                                            dots[i][j].birth = cellNew;
+                                        }
+                                        empties.splice(n, 1);
+                                    }
+                                }
+                                
+								if (dots[i][j].class == 'cellClass') {
+                                    var path, danger, targetFound = false, m = 0, runways = [];
+                                    if (empties.length > 0){
+                                        for (let k = 0; k < 3; ++k){
+                                            for (let t = 0; t < 3; ++t){
+                                                if (k == 1 && t == 1) continue;
+                                                let x, y;
+                                                x = i + k - 1;
+                                                if (x < 0){x = rows + x}
+                                                if (x > rows - 1){x = x - rows}
+                                                y = j + t - 1;
+                                                if (y < 0){y = cols + y}
+                                                if (y > cols - 1){y = y - cols}
+                                            }
+                                        }
+                                        if (targetFound) {
+                                            for (let c = 0; c < empties.length; ++c){
+                                                if (!(Math.abs(empties[c].i - danger.i) == 1 && empties[c].j == danger.j) || (Math.abs(empties[c].j - danger.j) == 1 && empties[c].i == danger.i)) runways.push(empties[c]);
+                                            }
+                                            if (runways.length == 0) targetFound = false;
+                                        }
+                                        if (!targetFound) {
+                                            n = Math.floor(Math.random() * empties.length);
+                                            path = empties[n];
+                                        }
+                                        else {
+                                            n = Math.floor(Math.random() * runways.length);
+                                            path = runways[n];
+                                        }
+                                        dots[path.i][path.j] = dots[i][j];
+                                        dots[path.i][path.j].i = path.i;
+                                        dots[path.i][path.j].j = path.j;
+                                        dots[path.i][path.j].moved = true; 
+                                        dots[i][j] = {class:'empty', i:i, j:j, moved:false};
+                                    }
+                                    else dots[i][j] = {class:'empty', i:i, j:j, moved:false};
+                                }
+                            }
+                        }
+                    }
+                }
+                let cell = 0;
+                for (let i = 0; i < rows; ++i) {
+                    for (let j = 0; j < cols; ++j) {
+                        if (dots[i][j].class == 'cellClass') {
+                            if (dots[i][j].life < cellTime / 2) cnvContext.fillStyle = document.forms.btns.elements.cellAlive.value
+                            else cnvContext.fillStyle = document.forms.btns.elements.cellAlive.value;
+                            dots[i][j].spooked = false;
+                            ++cell;
+                        }
+                        if (dots[i][j].class == 'empty') cnvContext.fillStyle = document.forms.btns.elements.cellDead.value;
+                        cnvContext.beginPath();
+                        cnvContext.rect(j * 10 + 1, i * 10 + 1, 9, 9);
+                        cnvContext.fill();
+                        cnvContext.closePath();
+                        dots[i][j].moved = false;
+                    }
+                }
+                cellCount.textContent = 'Клеток: ' + String(cell);
+                cnvContext.closePath();
+            }, 700);
+        }
+    </script>
+</body>
+</html>
